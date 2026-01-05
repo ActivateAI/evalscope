@@ -60,12 +60,20 @@ class ImageEditAPI(ModelAPI):
         torch_dtype = collect_model_arg('precision') or collect_model_arg('torch_dtype')
         device_map = collect_model_arg('device_map')
         # torch dtype
-        DTYPE_MAP = {'float16': torch.float16, 'float32': torch.float32, 'bfloat16': torch.bfloat16, 'auto': 'auto'}
+        DTYPE_MAP = {
+            'float16': torch.float16,
+            'torch.float16': torch.float16,
+            'float32': torch.float32,
+            'torch.float32': torch.float32,
+            'bfloat16': torch.bfloat16,
+            'torch.bfloat16': torch.bfloat16,
+            'auto': 'auto',
+        }
 
         if isinstance(torch_dtype, str) and torch_dtype != 'auto':
             torch_dtype = DTYPE_MAP.get(torch_dtype, torch.float32)
         self.torch_dtype = torch_dtype
-        self.device = device_map or get_device()
+        self.device = get_device()
 
         self.pipeline_cls = collect_model_arg('pipeline_cls')
         # default to DiffusionPipeline if not specified
@@ -85,10 +93,12 @@ class ImageEditAPI(ModelAPI):
         self.model = module.from_pretrained(
             model_name_or_path,
             torch_dtype=self.torch_dtype,
+            device_map=device_map,
             **model_args,
         )
 
-        self.model.to(self.device)
+        if device_map != 'balanced':
+            self.model.to(self.device)
 
     def generate(
         self,
